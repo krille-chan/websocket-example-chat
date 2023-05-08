@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>NodeJS Chat</title>
+        <link href="/tailwind.css" rel="stylesheet">
+    </head>
+    <body>
+        <div class="flex flex-col h-screen w-screen">
+            <div class="flex flex-row">
+                <h1 class="text-2xl p-4">NodeJS Chat</h1>
+                <input class="p-2 m-2 rounded border" type="text" placeholder="Choose a username..." value="Anonymous" id="usernameTextField"/>
+            </div>
+            <hr/>
+            <div class="m-4 rounded bg-gray-100 flex-grow flex flex-col-reverse overflow-y-scroll" id="timeline"></div>
+            <hr/>
+            <form class="flex flex-row" id="sendMessageForm">
+                <input autofocus="true" aria-autocomplete="false" class="p-4 flex-grow" id="messageTextField" type="text" placeholder="Type a message..." />
+                <button class="rounded px-4 py-2 my-2 mx-4 hover:bg-blue-200 hover:ring-4 transition-all bg-blue-300" value="Send">Send</button>
+            </form>
+        </div>
+    </body>
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js" integrity="sha384-c79GN5VsunZvi+Q/WObgk2in0CbZsHnjEqvFxC5DxHn9lTfNce2WW6h2pH6u/kF+" crossorigin="anonymous"></script>
+    <script src="chat.js"></script>
+</html>
