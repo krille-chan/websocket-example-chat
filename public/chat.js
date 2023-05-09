@@ -2,13 +2,26 @@ var username = window.localStorage.getItem('username');
 
 while (!username || username === "" || username === "System") {
     username = prompt("Please enter your name", "Anonymous");
-    window.localStorage.setItem('username', username);
+    if (username !== null) {
+        window.localStorage.setItem('username', username);
+    }
 }
 
 var iceServers;
 var rtcPeerConnection;
 var userStream;
 var socket;
+
+const roomNameElement = document.getElementById('roomName');
+const sendMessageFormElement = document.getElementById('sendMessageForm');
+const messageFieldElement = document.getElementById('messageTextField');
+const timelineElement = document.getElementById('timeline');
+
+const videoCallButton = document.getElementById('videocallButton');
+const closeCallButton = document.getElementById('closecallButton');
+const callSessionElement = document.getElementById('callSession');
+const userVideoElement = document.getElementById('userVideo');
+const peerVideoElement = document.getElementById('peerVideo');
 
 fetch('config.json').then((config) => {
     iceServers = { 'iceServers': config.iceServers };
@@ -25,7 +38,7 @@ fetch('config.json').then((config) => {
         console.log('Received message', event);
         addMessageToTimeline({ 'username': event.username, 'message': 'Sent signal "ready"' });
         if (event.username === username) return;
-        if (document.getElementById('userVideo').srcObject != null) {
+        if (userVideoElement.srcObject != null) {
             console.log('Create RTCPeerConnection...');
             rtcPeerConnection = new RTCPeerConnection(iceServers);
             rtcPeerConnection.onicecandidate = onicecandidate;
@@ -107,26 +120,26 @@ if (window.location.hash == '') {
     window.location.hash = randomWord() + randomWord() + randomWord() + randomWord() + Math.floor(Math.random() * 9999);
 }
 
-document.getElementById('roomName').innerText = 'Room: ' + window.location.hash;
+roomNameElement.innerText = 'Room: ' + window.location.hash;
 
-document.getElementById('sendMessageForm').onsubmit = (event) => {
+sendMessageFormElement.onsubmit = (event) => {
     event.preventDefault();
-    var messageField = document.getElementById('messageTextField');
+
     var event = {
         'username': username,
-        'message': messageField.value,
+        'message': messageFieldElement.value,
         'room': window.location.hash
     };
     console.log('Send message...', event);
     socket.emit('sendMessage', event);
-    messageField.value = '';
+    messageFieldElement.value = '';
 };
 
 function addMessageToTimeline(event) {
     var messageNode = document.createElement('p');
     var timestamp = new Date();
     messageNode.innerText = event.username + ' (' + timestamp.toLocaleTimeString() + '): ' + event.message;
-    document.getElementById('timeline').prepend(messageNode);
+    timelineElement.prepend(messageNode);
 }
 
 function onicecandidate(event) {
@@ -142,7 +155,7 @@ function onicecandidate(event) {
 
 function ontrack(event) {
     console.log('Ontrack', event);
-    var videoElement = document.getElementById('peerVideo');
+    var videoElement = peerVideoElement;
     videoElement.srcObject = event.streams[0];
     videoElement.onloadedmetadata = (e) => {
         videoElement.play();
@@ -150,49 +163,39 @@ function ontrack(event) {
 }
 
 
-document.getElementById('videocallButton').onclick = (event) => {
+videoCallButton.onclick = (event) => {
     event.preventDefault();
     startCall({
-        audio: false,
+        audio: true,
         video: true
-    });
-};
-
-document.getElementById('audiocallButton').onclick = (event) => {
-    event.preventDefault();
-    startCall({
-        audio: false,
-        video: false
     });
 };
 
 function startCall(userMediaData) {
     navigator.mediaDevices.getUserMedia(userMediaData).then((stream) => {
         userStream = stream;
-        var videoElement = document.getElementById('userVideo');
+        var videoElement = userVideoElement;
         videoElement.srcObject = stream;
         videoElement.onloadedmetadata = (e) => {
             videoElement.play();
         };
-        document.getElementById('callSession').classList.remove('hidden');
-        document.getElementById('audiocallButton').classList.add('hidden');
-        document.getElementById('videocallButton').classList.add('hidden');
-        document.getElementById('closecallButton').classList.remove('hidden');
+        callSessionElement.classList.remove('hidden');
+        videoCallButton.classList.add('hidden');
+        closeCallButton.classList.remove('hidden');
         socket.emit('ready', { 'username': username, 'room': window.location.hash });
     }).catch((err) => {
         addMessageToTimeline({ 'message': 'Error while trying to get user media: ' + err, 'username': 'System' });
     });
 }
 
-document.getElementById('closecallButton').onclick = (event) => {
+closeCallButton.onclick = (event) => {
     event.preventDefault();
     addMessageToTimeline({ 'message': 'Hangup...', 'username': 'System' });
-    var videoElement = document.getElementById('userVideo');
+    var videoElement = userVideoElement;
     videoElement.srcObject.getTracks().forEach(function (track) {
         track.stop();
     });
-    document.getElementById('callSession').classList.add('hidden');
-    document.getElementById('audiocallButton').classList.remove('hidden');
-    document.getElementById('videocallButton').classList.remove('hidden');
-    document.getElementById('closecallButton').classList.add('hidden');
+    callSessionElement.classList.add('hidden');
+    videoCallButton.classList.remove('hidden');
+    closeCallButton.classList.add('hidden');
 };
