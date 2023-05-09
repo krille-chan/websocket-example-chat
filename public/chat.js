@@ -1,15 +1,102 @@
 var username = window.localStorage.getItem('username');
 
 while (!username || username === "" || username === "System") {
-    username = prompt("Please enter your name", "Harry Potter");
+    username = prompt("Please enter your name", "Anonymous");
     window.localStorage.setItem('username', username);
 }
 
-var socket = io.connect('http://192.168.178.20:4000');
-
-const iceServers = { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] };
+var iceServers;
 var rtcPeerConnection;
 var userStream;
+var socket;
+
+fetch('config.json').then((config) => {
+    iceServers = { 'iceServers': config.iceServers };
+    socket = io.connect(config.server);
+    socket.emit('join', { 'username': username, 'room': window.location.hash });
+
+
+    socket.on('sendMessage', (event) => {
+        console.log('Received message', event);
+        addMessageToTimeline(event);
+    });
+
+    socket.on('ready', (event) => {
+        console.log('Received message', event);
+        addMessageToTimeline({ 'username': event.username, 'message': 'Sent signal "ready"' });
+        if (event.username === username) return;
+        if (document.getElementById('userVideo').srcObject != null) {
+            console.log('Create RTCPeerConnection...');
+            rtcPeerConnection = new RTCPeerConnection(iceServers);
+            rtcPeerConnection.onicecandidate = onicecandidate;
+            rtcPeerConnection.ontrack = ontrack;
+            rtcPeerConnection.addTrack(userStream.getTracks()[0], userStream);
+            //rtcPeerConnection.addTrack(userStream.getTracks()[1], userStream);
+            rtcPeerConnection.createOffer((offer) => {
+                console.log('On offer', offer);
+                rtcPeerConnection.setLocalDescription(offer);
+                socket.emit('offer', {
+                    'username': username,
+                    'room': window.location.hash,
+                    'offer': offer,
+                });
+            }, (error) => console.log(error),
+            );
+            return;
+        }
+
+        startCall({
+            audio: false,
+            video: true
+        });
+    });
+
+    socket.on('candidates', (event) => {
+        console.log('Received message', event);
+        addMessageToTimeline({ 'username': event.username, 'message': 'Sent signal "candidates"' });
+
+        if (event.username !== username) {
+            const iceCandidate = new RTCIceCandidate(event.candidate);
+            rtcPeerConnection.addIceCandidate(iceCandidate);
+        }
+    });
+
+    socket.on('offer', (event) => {
+        console.log('Received message', event);
+        addMessageToTimeline({ 'username': event.username, 'message': 'Sent signal "offer"' });
+
+        if (event.username !== username) {
+            console.log('Create RTCPeerConnection...');
+            rtcPeerConnection = new RTCPeerConnection(iceServers);
+            rtcPeerConnection.onicecandidate = onicecandidate;
+            rtcPeerConnection.ontrack = ontrack;
+            rtcPeerConnection.addTrack(userStream.getTracks()[0], userStream);
+            //rtcPeerConnection.addTrack(userStream.getTracks()[1], userStream);
+            rtcPeerConnection.setRemoteDescription(event.offer);
+            rtcPeerConnection.createAnswer((answer) => {
+                console.log('On answer', answer);
+                rtcPeerConnection.setLocalDescription(answer);
+                socket.emit('answer', {
+                    'username': username,
+                    'room': window.location.hash,
+                    'answer': answer,
+                });
+            }, (error) => console.log(error),
+            );
+            return;
+        }
+    });
+
+    socket.on('answer', (event) => {
+        console.log('Received message', event);
+        addMessageToTimeline({ 'username': event.username, 'message': 'Sent signal "answer"' });
+
+        if (event.username !== username) {
+            rtcPeerConnection.setRemoteDescription(event.answer);
+
+        }
+    });
+});
 
 function randomWord() {
     const things = ['Rock', 'Paper', 'Scissor', 'Black', 'White', 'Red', 'Blue', 'Green', 'Orange', 'Koala', 'Tiger', 'Cat', 'Dog'];
@@ -21,8 +108,6 @@ if (window.location.hash == '') {
 }
 
 document.getElementById('roomName').innerText = 'Room: ' + window.location.hash;
-
-socket.emit('join', { 'username': username, 'room': window.location.hash });
 
 document.getElementById('sendMessageForm').onsubmit = (event) => {
     event.preventDefault();
@@ -64,86 +149,6 @@ function ontrack(event) {
     };
 }
 
-socket.on('sendMessage', (event) => {
-    console.log('Received message', event);
-    addMessageToTimeline(event);
-});
-
-socket.on('ready', (event) => {
-    console.log('Received message', event);
-    addMessageToTimeline({ 'username': event.username, 'message': 'Sent signal "ready"' });
-    if (event.username === username) return;
-    if (document.getElementById('userVideo').srcObject != null) {
-        console.log('Create RTCPeerConnection...');
-        rtcPeerConnection = new RTCPeerConnection(iceServers);
-        rtcPeerConnection.onicecandidate = onicecandidate;
-        rtcPeerConnection.ontrack = ontrack;
-        rtcPeerConnection.addTrack(userStream.getTracks()[0], userStream);
-        //rtcPeerConnection.addTrack(userStream.getTracks()[1], userStream);
-        rtcPeerConnection.createOffer((offer) => {
-            console.log('On offer', offer);
-            rtcPeerConnection.setLocalDescription(offer);
-            socket.emit('offer', {
-                'username': username,
-                'room': window.location.hash,
-                'offer': offer,
-            });
-        }, (error) => console.log(error),
-        );
-        return;
-    }
-
-    startCall({
-        audio: false,
-        video: true
-    });
-});
-
-socket.on('candidates', (event) => {
-    console.log('Received message', event);
-    addMessageToTimeline({ 'username': event.username, 'message': 'Sent signal "candidates"' });
-
-    if (event.username !== username) {
-        const iceCandidate = new RTCIceCandidate(event.candidate);
-        rtcPeerConnection.addIceCandidate(iceCandidate);
-    }
-});
-
-socket.on('offer', (event) => {
-    console.log('Received message', event);
-    addMessageToTimeline({ 'username': event.username, 'message': 'Sent signal "offer"' });
-
-    if (event.username !== username) {
-        console.log('Create RTCPeerConnection...');
-        rtcPeerConnection = new RTCPeerConnection(iceServers);
-        rtcPeerConnection.onicecandidate = onicecandidate;
-        rtcPeerConnection.ontrack = ontrack;
-        rtcPeerConnection.addTrack(userStream.getTracks()[0], userStream);
-        //rtcPeerConnection.addTrack(userStream.getTracks()[1], userStream);
-        rtcPeerConnection.setRemoteDescription(event.offer);
-        rtcPeerConnection.createAnswer((answer) => {
-            console.log('On answer', answer);
-            rtcPeerConnection.setLocalDescription(answer);
-            socket.emit('answer', {
-                'username': username,
-                'room': window.location.hash,
-                'answer': answer,
-            });
-        }, (error) => console.log(error),
-        );
-        return;
-    }
-});
-
-socket.on('answer', (event) => {
-    console.log('Received message', event);
-    addMessageToTimeline({ 'username': event.username, 'message': 'Sent signal "answer"' });
-
-    if (event.username !== username) {
-        rtcPeerConnection.setRemoteDescription(event.answer);
-
-    }
-});
 
 document.getElementById('videocallButton').onclick = (event) => {
     event.preventDefault();
