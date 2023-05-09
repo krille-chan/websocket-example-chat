@@ -44,7 +44,7 @@ fetch('config.json').then((config) => {
             rtcPeerConnection.onicecandidate = onicecandidate;
             rtcPeerConnection.ontrack = ontrack;
             rtcPeerConnection.addTrack(userStream.getTracks()[0], userStream);
-            //rtcPeerConnection.addTrack(userStream.getTracks()[1], userStream);
+            rtcPeerConnection.addTrack(userStream.getTracks()[1], userStream);
             rtcPeerConnection.createOffer((offer) => {
                 console.log('On offer', offer);
                 rtcPeerConnection.setLocalDescription(offer);
@@ -59,7 +59,7 @@ fetch('config.json').then((config) => {
         }
 
         startCall({
-            audio: false,
+            audio: true,
             video: true
         });
     });
@@ -84,7 +84,7 @@ fetch('config.json').then((config) => {
             rtcPeerConnection.onicecandidate = onicecandidate;
             rtcPeerConnection.ontrack = ontrack;
             rtcPeerConnection.addTrack(userStream.getTracks()[0], userStream);
-            //rtcPeerConnection.addTrack(userStream.getTracks()[1], userStream);
+            rtcPeerConnection.addTrack(userStream.getTracks()[1], userStream);
             rtcPeerConnection.setRemoteDescription(event.offer);
             rtcPeerConnection.createAnswer((answer) => {
                 console.log('On answer', answer);
